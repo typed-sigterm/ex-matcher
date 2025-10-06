@@ -25,7 +25,7 @@ const rank = computed(() => {
         v-for="(item, i) in rank"
         :key="item.playerId"
         class="rank-item"
-        :class="i === round.playerId && 'current'"
+        :class="item.playerId === round.playerId && 'current'"
         :value="item"
         :drag-listener="false"
       >

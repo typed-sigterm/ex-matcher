@@ -117,6 +117,7 @@ td {
   height: 4.5rem;
   background-color: rgba(46, 51, 56, .09);
   text-align: center;
+  vertical-align: middle;
   cursor: default;
   transition: background-color 0.3s, color 0.3s, opacity 0.3s;
 }

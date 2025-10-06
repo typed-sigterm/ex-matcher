@@ -16,7 +16,7 @@ function onGo() {
 
 function onCompleted() {
   round.stop();
-  const achievement = round.time;
+  const achievement = round.time / game.roundlyPairCount;
   headerBoard.value?.stop();
 
   let badge = 0;

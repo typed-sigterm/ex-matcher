@@ -2,6 +2,8 @@
 
 A word-definition matching game for classroom displays, helping groups match vocabulary pairs interactively.
 
+![Game interface](./src/assets/demo/2.avif)
+
 ## ✨ Features
 
 - 📝 Import any word-definition pairs to match your curriculum

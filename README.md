@@ -1,9 +1,4 @@
-# ExMatcher
-
-![Last commit](https://img.shields.io/github/last-commit/typed-sigterm/ex-matcher/main)
-![License](https://img.shields.io/github/license/typed-sigterm/ex-matcher)
-![OSS Lifecycle](https://img.shields.io/osslifecycle?file_url=https%3A%2F%2Fraw.githubusercontent.com%2Ftyped-sigterm%2Fex-matcher%2Fmain%2FOSSMETADATA)
-[![GitHub Stars](https://img.shields.io/github/stars/typed-sigterm/ex-matcher)](https://github.com/typed-sigterm/ex-matcher)
+# ExMatcher ![Last commit](https://img.shields.io/github/last-commit/typed-sigterm/ex-matcher/main) ![License](https://img.shields.io/github/license/typed-sigterm/ex-matcher) ![OSS Lifecycle](https://img.shields.io/osslifecycle?file_url=https%3A%2F%2Fraw.githubusercontent.com%2Ftyped-sigterm%2Fex-matcher%2Fmain%2FOSSMETADATA) [![GitHub Stars](https://img.shields.io/github/stars/typed-sigterm/ex-matcher)](https://github.com/typed-sigterm/ex-matcher)
 
 A word-definition matching game for classroom displays, helping groups match vocabulary pairs interactively.
 

@@ -24,6 +24,7 @@ const pairsLeft = ref(''), pairsRight = ref('');
 const getInputPairs = () => [pairsLeft.value.trim().split('\n'), pairsRight.value.trim().split('\n')];
 const showManualInputModal = ref(false);
 const uploadError = ref<string | undefined>();
+const fileUploaded = ref(false);
 // Note: pairs are now managed through game.allPairs directly
 // No need to sync on step change since Excel upload and manual input handle it
 
@@ -47,15 +48,15 @@ const disableNext = computed(() => {
       // Only validate if we have manually entered pairs
       if (pairsLeft.value || pairsRight.value) {
         const [l, r] = getInputPairs().map(x => new Set(x));
-        return !l.size || l.size !== r.size; // 去重
+        return !l.size || l.size !== r.size; // deduplicate
       }
       // Check if we have pairs loaded from Excel
       return game.allPairs.length === 0;
     }
     case 2: {
-      if (game.players.some(x => x.trim() === '')) // 禁止空白
+      if (game.players.some(x => x.trim() === '')) // no empty names
         return true;
-      return new Set(game.players).size !== game.players.length; // 禁止重复
+      return new Set(game.players).size !== game.players.length; // no duplicates
     }
   }
   return false;
@@ -64,25 +65,29 @@ const disableNext = computed(() => {
 // Handle Excel file upload
 async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
   uploadError.value = undefined;
-  
+
   if (!options.fileList || options.fileList.length === 0) {
+    fileUploaded.value = false;
+    game.allPairs = [];
     return;
   }
-  
+
   const fileInfo = options.fileList[0];
   if (!fileInfo.file) {
     return;
   }
-  
+
   const result = await parseExcelFile(fileInfo.file);
-  
+
   if (!result.success) {
     uploadError.value = result.error;
+    fileUploaded.value = false;
     return;
   }
-  
+
   // Success: update game store with parsed pairs
   game.allPairs = result.pairs || [];
+  fileUploaded.value = true;
   // Clear manual input
   pairsLeft.value = '';
   pairsRight.value = '';
@@ -111,6 +116,7 @@ function saveManualInput() {
     }
   }
   uploadError.value = undefined;
+  fileUploaded.value = false;
   showManualInputModal.value = false;
 }
 </script>
@@ -127,37 +133,41 @@ function saveManualInput() {
     </template>
 
     <template v-if="step === 1">
-      <p class="mb-2">
-        Upload an Excel file with pairs in columns A and B, or use manual input.
+      <p class="mb-4">
+        Upload an Excel file with pairs in columns A and B, or
+        <a class="cursor-pointer text-blue-500 hover:text-blue-600" @click="openManualInput">
+          use manual input
+        </a>.
       </p>
+
       <NUpload
+        v-show="!fileUploaded"
         accept=".xlsx,.xls"
         :max="1"
         :default-upload="false"
         @change="handleFileChange"
       >
-        <NButton>
-          <template #icon>
-            <div class="i-lucide:upload" />
-          </template>
-          Select Excel File
-        </NButton>
+        <NUploadDragger>
+          <div class="mb-3">
+            <div class="i-lucide:upload text-5xl text-gray-400" />
+          </div>
+          <p class="text-base">
+            Click or drag Excel file to this area to upload
+          </p>
+          <p class="mt-2 text-sm text-gray-500">
+            Please ensure columns A and B contain the candidate pairs
+          </p>
+        </NUploadDragger>
       </NUpload>
-      
+
       <NAlert v-if="uploadError" type="error" class="mt-2">
         {{ uploadError }}
       </NAlert>
-      
+
       <NAlert v-else-if="game.allPairs.length > 0" type="success" class="mt-2">
         {{ game.allPairs.length }} pairs loaded
       </NAlert>
-      
-      <div class="mt-4">
-        <a class="cursor-pointer text-blue-500 hover:text-blue-600" @click="openManualInput">
-          Manual Input
-        </a>
-      </div>
-      
+
       <NModal
         v-model:show="showManualInputModal"
         preset="card"
@@ -277,7 +287,10 @@ function saveManualInput() {
         </template>
         Source Code
       </NTooltip>
-      <div>
+      <div class="flex items-center gap-2">
+        <span v-if="step === 1 && game.allPairs.length > 0" class="text-sm text-gray-600">
+          {{ game.allPairs.length }} pairs detected
+        </span>
         <NButton v-if="step > 1" class="mr-2" @click="step--">
           Prev
         </NButton>

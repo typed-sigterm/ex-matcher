@@ -26,12 +26,10 @@ const showManualInputModal = ref(false);
 const uploadError = ref<string | undefined>();
 const fileUploaded = ref(false);
 
-// Computed property for the number of pairs in local state
 const localPairCount = computed(() => {
   const [l, r] = getInputPairs();
-  // Filter out empty lines
-  const validL = l.filter(x => x.trim() !== '');
-  const validR = r.filter(x => x.trim() !== '');
+  const validL = l.filter(x => x.trim());
+  const validR = r.filter(x => x.trim());
   return Math.min(validL.length, validR.length);
 });
 
@@ -66,14 +64,12 @@ whenever(() => step.value > TotalSteps, () => {
 const disableNext = computed(() => {
   switch (step.value) {
     case 1: {
-      // Check if there's an upload error
-      if (uploadError.value) {
+      if (uploadError.value)
         return true;
-      }
-      // Validate input pairs
       const [l, r] = getInputPairs().map(x => new Set(x));
       return !l.size || l.size !== r.size; // deduplicate
     }
+
     case 2: {
       if (game.players.some(x => x.trim() === '')) // no empty names
         return true;
@@ -83,7 +79,6 @@ const disableNext = computed(() => {
   return false;
 });
 
-// Handle Excel file upload
 async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
   uploadError.value = undefined;
 
@@ -118,13 +113,10 @@ async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
   fileUploaded.value = true;
 }
 
-// Open manual input modal
 function openManualInput() {
-  // Current pairs are already in pairsLeft/pairsRight
   showManualInputModal.value = true;
 }
 
-// Save manual input
 function saveManualInput() {
   uploadError.value = undefined;
   fileUploaded.value = false;
@@ -163,7 +155,7 @@ function saveManualInput() {
             <div class="i-lucide:upload text-5xl text-gray-400" />
           </div>
           <p class="text-base">
-            Click or drag Excel file to this area to upload
+            Click or drag Excel file here
           </p>
           <p class="mt-2 text-sm text-gray-500">
             Please ensure columns A and B contain the candidate pairs

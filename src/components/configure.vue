@@ -25,8 +25,33 @@ const getInputPairs = () => [pairsLeft.value.trim().split('\n'), pairsRight.valu
 const showManualInputModal = ref(false);
 const uploadError = ref<string | undefined>();
 const fileUploaded = ref(false);
-// Note: pairs are now managed through game.allPairs directly
-// No need to sync on step change since Excel upload and manual input handle it
+
+// Computed property for the number of pairs in local state
+const localPairCount = computed(() => {
+  const [l, r] = getInputPairs();
+  // Filter out empty lines
+  const validL = l.filter(x => x.trim() !== '');
+  const validR = r.filter(x => x.trim() !== '');
+  return Math.min(validL.length, validR.length);
+});
+
+// Store -> UI: Load existing pairs from store on mount
+for (const pair of game.allPairs) {
+  pairsLeft.value += `${pair[0]}\n`;
+  pairsRight.value += `${pair[1]}\n`;
+}
+
+// UI -> Store: Sync pairs to store when moving to step 2
+whenever(() => step.value === 2, () => {
+  const [l, r] = getInputPairs();
+  game.allPairs = [];
+  for (let i = 0; i < l.length; i++) {
+    const left = l[i].trim(), right = r[i].trim();
+    if (left || right) {
+      game.allPairs.push([left, right]);
+    }
+  }
+});
 
 whenever(() => step.value === 3, () => {
   if (game.players.length % 2 !== 0 && game.mode === 'pairwise')
@@ -45,13 +70,9 @@ const disableNext = computed(() => {
       if (uploadError.value) {
         return true;
       }
-      // Only validate if we have manually entered pairs
-      if (pairsLeft.value || pairsRight.value) {
-        const [l, r] = getInputPairs().map(x => new Set(x));
-        return !l.size || l.size !== r.size; // deduplicate
-      }
-      // Check if we have pairs loaded from Excel
-      return game.allPairs.length === 0;
+      // Validate input pairs
+      const [l, r] = getInputPairs().map(x => new Set(x));
+      return !l.size || l.size !== r.size; // deduplicate
     }
     case 2: {
       if (game.players.some(x => x.trim() === '')) // no empty names
@@ -68,7 +89,8 @@ async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
 
   if (!options.fileList || options.fileList.length === 0) {
     fileUploaded.value = false;
-    game.allPairs = [];
+    pairsLeft.value = '';
+    pairsRight.value = '';
     return;
   }
 
@@ -85,36 +107,25 @@ async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
     return;
   }
 
-  // Success: update game store with parsed pairs
-  game.allPairs = result.pairs || [];
-  fileUploaded.value = true;
-  // Clear manual input
+  // Success: update local state with parsed pairs (not store directly)
+  const pairs = result.pairs || [];
   pairsLeft.value = '';
   pairsRight.value = '';
+  for (const pair of pairs) {
+    pairsLeft.value += `${pair[0]}\n`;
+    pairsRight.value += `${pair[1]}\n`;
+  }
+  fileUploaded.value = true;
 }
 
 // Open manual input modal
 function openManualInput() {
-  // Load current pairs into text areas
-  pairsLeft.value = '';
-  pairsRight.value = '';
-  for (const pair of game.allPairs) {
-    pairsLeft.value += `${pair[0]}\n`;
-    pairsRight.value += `${pair[1]}\n`;
-  }
+  // Current pairs are already in pairsLeft/pairsRight
   showManualInputModal.value = true;
 }
 
 // Save manual input
 function saveManualInput() {
-  const [l, r] = getInputPairs();
-  game.allPairs = [];
-  for (let i = 0; i < l.length; i++) {
-    const left = l[i].trim(), right = r[i].trim();
-    if (left || right) {
-      game.allPairs.push([left, right]);
-    }
-  }
   uploadError.value = undefined;
   fileUploaded.value = false;
   showManualInputModal.value = false;
@@ -148,7 +159,7 @@ function saveManualInput() {
         @change="handleFileChange"
       >
         <NUploadDragger>
-          <div class="mb-3">
+          <div class="mb-3 flex justify-center">
             <div class="i-lucide:upload text-5xl text-gray-400" />
           </div>
           <p class="text-base">
@@ -164,8 +175,8 @@ function saveManualInput() {
         {{ uploadError }}
       </NAlert>
 
-      <NAlert v-else-if="game.allPairs.length > 0" type="success" class="mt-2">
-        {{ game.allPairs.length }} pairs loaded
+      <NAlert v-else-if="localPairCount > 0" type="success" class="mt-2">
+        {{ localPairCount }} pairs loaded
       </NAlert>
 
       <NModal
@@ -288,8 +299,8 @@ function saveManualInput() {
         Source Code
       </NTooltip>
       <div class="flex items-center gap-2">
-        <span v-if="step === 1 && game.allPairs.length > 0" class="text-sm text-gray-600">
-          {{ game.allPairs.length }} pairs detected
+        <span v-if="step === 1 && localPairCount > 0" class="text-sm text-gray-600">
+          {{ localPairCount }} pairs detected
         </span>
         <NButton v-if="step > 1" class="mr-2" @click="step--">
           Prev

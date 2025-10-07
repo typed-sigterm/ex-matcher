@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { UploadFileInfo } from 'naive-ui';
 import { whenever } from '@vueuse/core';
 import { ReorderGroup, ReorderItem } from 'motion-v';
 import { computed, ref } from 'vue';
+import { parseExcelFile } from '@/utils/excel';
 import { useGameStore } from '@/utils/game';
 import { useRoundStore } from '@/utils/round';
 
@@ -20,20 +22,10 @@ const PairsInputProps = {
 
 const pairsLeft = ref(''), pairsRight = ref('');
 const getInputPairs = () => [pairsLeft.value.trim().split('\n'), pairsRight.value.trim().split('\n')];
-// store -> UI
-for (const pair of game.allPairs) {
-  pairsLeft.value += `${pair[0]}\n`;
-  pairsRight.value += `${pair[1]}\n`;
-}
-// UI -> store
-whenever(() => step.value === 2, () => {
-  const [l, r] = getInputPairs();
-  game.allPairs = [];
-  for (let i = 0; i < l.length; i++) {
-    const left = l[i].trim(), right = r[i].trim();
-    game.allPairs.push([left, right]);
-  }
-});
+const showManualInputModal = ref(false);
+const uploadError = ref<string | undefined>();
+// Note: pairs are now managed through game.allPairs directly
+// No need to sync on step change since Excel upload and manual input handle it
 
 whenever(() => step.value === 3, () => {
   if (game.players.length % 2 !== 0 && game.mode === 'pairwise')
@@ -48,8 +40,17 @@ whenever(() => step.value > TotalSteps, () => {
 const disableNext = computed(() => {
   switch (step.value) {
     case 1: {
-      const [l, r] = getInputPairs().map(x => new Set(x));
-      return !l.size || l.size !== r.size; // 去重
+      // Check if there's an upload error
+      if (uploadError.value) {
+        return true;
+      }
+      // Only validate if we have manually entered pairs
+      if (pairsLeft.value || pairsRight.value) {
+        const [l, r] = getInputPairs().map(x => new Set(x));
+        return !l.size || l.size !== r.size; // 去重
+      }
+      // Check if we have pairs loaded from Excel
+      return game.allPairs.length === 0;
     }
     case 2: {
       if (game.players.some(x => x.trim() === '')) // 禁止空白
@@ -59,6 +60,59 @@ const disableNext = computed(() => {
   }
   return false;
 });
+
+// Handle Excel file upload
+async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
+  uploadError.value = undefined;
+  
+  if (!options.fileList || options.fileList.length === 0) {
+    return;
+  }
+  
+  const fileInfo = options.fileList[0];
+  if (!fileInfo.file) {
+    return;
+  }
+  
+  const result = await parseExcelFile(fileInfo.file);
+  
+  if (!result.success) {
+    uploadError.value = result.error;
+    return;
+  }
+  
+  // Success: update game store with parsed pairs
+  game.allPairs = result.pairs || [];
+  // Clear manual input
+  pairsLeft.value = '';
+  pairsRight.value = '';
+}
+
+// Open manual input modal
+function openManualInput() {
+  // Load current pairs into text areas
+  pairsLeft.value = '';
+  pairsRight.value = '';
+  for (const pair of game.allPairs) {
+    pairsLeft.value += `${pair[0]}\n`;
+    pairsRight.value += `${pair[1]}\n`;
+  }
+  showManualInputModal.value = true;
+}
+
+// Save manual input
+function saveManualInput() {
+  const [l, r] = getInputPairs();
+  game.allPairs = [];
+  for (let i = 0; i < l.length; i++) {
+    const left = l[i].trim(), right = r[i].trim();
+    if (left || right) {
+      game.allPairs.push([left, right]);
+    }
+  }
+  uploadError.value = undefined;
+  showManualInputModal.value = false;
+}
 </script>
 
 <template>
@@ -74,12 +128,61 @@ const disableNext = computed(() => {
 
     <template v-if="step === 1">
       <p class="mb-2">
-        The same row on both sides is considered a pair.
+        Upload an Excel file with pairs in columns A and B, or use manual input.
       </p>
-      <div class="flex gap-1">
-        <NInput v-model:value="pairsLeft" v-bind="PairsInputProps" />
-        <NInput v-model:value="pairsRight" v-bind="PairsInputProps" />
+      <NUpload
+        accept=".xlsx,.xls"
+        :max="1"
+        :default-upload="false"
+        @change="handleFileChange"
+      >
+        <NButton>
+          <template #icon>
+            <div class="i-lucide:upload" />
+          </template>
+          Select Excel File
+        </NButton>
+      </NUpload>
+      
+      <NAlert v-if="uploadError" type="error" class="mt-2">
+        {{ uploadError }}
+      </NAlert>
+      
+      <NAlert v-else-if="game.allPairs.length > 0" type="success" class="mt-2">
+        {{ game.allPairs.length }} pairs loaded
+      </NAlert>
+      
+      <div class="mt-4">
+        <a class="cursor-pointer text-blue-500 hover:text-blue-600" @click="openManualInput">
+          Manual Input
+        </a>
       </div>
+      
+      <NModal
+        v-model:show="showManualInputModal"
+        preset="card"
+        title="Manual Input"
+        class="w-200"
+        :segmented="{ content: true }"
+      >
+        <p class="mb-2">
+          The same row on both sides is considered a pair.
+        </p>
+        <div class="flex gap-1">
+          <NInput v-model:value="pairsLeft" v-bind="PairsInputProps" />
+          <NInput v-model:value="pairsRight" v-bind="PairsInputProps" />
+        </div>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <NButton @click="showManualInputModal = false">
+              Cancel
+            </NButton>
+            <NButton type="primary" @click="saveManualInput">
+              Save
+            </NButton>
+          </div>
+        </template>
+      </NModal>
     </template>
 
     <template v-else-if="step === 2">

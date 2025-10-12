@@ -2,7 +2,7 @@
 import { provide, ref, toRaw } from 'vue';
 import { useGameStore } from '@/utils/game';
 import { useRoundStore } from '@/utils/round';
-import { EditingGameConfig } from './configure/context';
+import { DisableNext, EditingGameConfig, SyncToConfig } from './configure/context';
 import Step1 from './configure/step-1.vue';
 import Step2 from './configure/step-2.vue';
 import Step3 from './configure/step-3.vue';
@@ -19,14 +19,18 @@ const StepTitle = ['', 'Import Candidate Pairs', 'Configure Players', 'Select Co
 const editingConfig = ref(structuredClone(toRaw(game.$state)));
 provide(EditingGameConfig, editingConfig);
 
-// Component refs
-const step1Ref = ref<InstanceType<typeof Step1>>();
-const step2Ref = ref<InstanceType<typeof Step2>>();
+// Provide a ref that step components can modify to disable the Next button
+const disableNext = ref(true);
+provide(DisableNext, disableNext);
+
+// Provide a ref for sync function that step 1 will set
+const syncToConfigRef = ref<(() => void) | undefined>();
+provide(SyncToConfig, syncToConfigRef);
 
 function handleNext() {
   // Sync step 1 data before moving forward
-  if (step.value === 1 && step1Ref.value) {
-    step1Ref.value.syncToConfig();
+  if (step.value === 1 && syncToConfigRef.value) {
+    syncToConfigRef.value();
   }
 
   // Move to next step
@@ -44,17 +48,6 @@ function handlePrev() {
   if (step.value > 1)
     step.value--;
 }
-
-function isCurrentStepValid() {
-  switch (step.value) {
-    case 1:
-      return step1Ref.value?.isValid ?? false;
-    case 2:
-      return step2Ref.value?.isValid ?? false;
-    default:
-      return true;
-  }
-}
 </script>
 
 <template>
@@ -68,8 +61,8 @@ function isCurrentStepValid() {
       {{ StepTitle[step] }}
     </template>
 
-    <Step1 v-if="step === 1" ref="step1Ref" />
-    <Step2 v-else-if="step === 2" ref="step2Ref" />
+    <Step1 v-if="step === 1" />
+    <Step2 v-else-if="step === 2" />
     <Step3 v-else-if="step === 3" />
 
     <template #action>
@@ -85,7 +78,7 @@ function isCurrentStepValid() {
         <NButton v-if="step > 1" class="mr-2" @click="handlePrev">
           Prev
         </NButton>
-        <NButton type="primary" :disabled="!isCurrentStepValid()" @click="handleNext">
+        <NButton type="primary" :disabled="disableNext" @click="handleNext">
           {{ step < TotalSteps ? 'Next' : 'Go' }}
         </NButton>
       </div>

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { UploadFileInfo } from 'naive-ui';
-import { computed, inject, ref } from 'vue';
+import { inject, ref, watch } from 'vue';
 import { parseExcelFile } from '@/utils/excel';
-import { EditingGameConfig } from './context';
+import { DisableNext, EditingGameConfig, SyncToConfig } from './context';
 
 const config = inject(EditingGameConfig)!;
+const disableNext = inject(DisableNext)!;
+const syncToConfigRef = inject(SyncToConfig)!;
 
 const PairsInputProps = {
   inputProps: { style: 'white-space: nowrap' },
@@ -25,7 +27,7 @@ for (const pair of config.value.allPairs) {
   pairsRight.value += `${pair[1]}\n`;
 }
 
-// Expose function to sync pairs back to config
+// Function to sync pairs back to config
 function syncToConfig() {
   const [l, r] = getInputPairs();
   config.value.allPairs = [];
@@ -38,14 +40,22 @@ function syncToConfig() {
   }
 }
 
-const isValid = computed(() => {
-  if (excelError.value)
-    return false;
-  const [l, r] = getInputPairs().map(x => new Set(x));
-  return l.size > 0 && l.size === r.size; // deduplicate
-});
+// Register sync function with parent via ref
+syncToConfigRef.value = syncToConfig;
 
-defineExpose({ syncToConfig, isValid });
+// Watch for validation changes and update disableNext
+watch(
+  () => {
+    if (excelError.value)
+      return true;
+    const [l, r] = getInputPairs().map(x => new Set(x));
+    return !(l.size > 0 && l.size === r.size); // deduplicate
+  },
+  (invalid) => {
+    disableNext.value = invalid;
+  },
+  { immediate: true },
+);
 
 async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
   excelError.value = undefined;

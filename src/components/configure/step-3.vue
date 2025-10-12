@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { ReorderGroup, ReorderItem } from 'motion-v';
-import { inject, watchEffect } from 'vue';
-import { EditingGameConfig } from './context';
+import { inject, onMounted, watchEffect } from 'vue';
+import { DisableNext, EditingGameConfig } from './context';
 
 const config = inject(EditingGameConfig)!;
+const disableNext = inject(DisableNext)!;
+
+// Step 3 is always valid
+onMounted(() => {
+  disableNext.value = false;
+});
 
 // Auto-switch to leaderboard if odd number of players
 watchEffect(() => {

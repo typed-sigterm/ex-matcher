@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue';
-import { EditingGameConfig } from './context';
+import { inject, watch } from 'vue';
+import { DisableNext, EditingGameConfig } from './context';
 
 const config = inject(EditingGameConfig)!;
+const disableNext = inject(DisableNext)!;
 
-const isValid = computed(() => {
-  // no empty names
-  if (config.value.players.some(x => x.trim() === ''))
-    return false;
-  // no duplicates
-  return new Set(config.value.players).size === config.value.players.length;
-});
-
-defineExpose({ isValid });
+// Watch for validation changes and update disableNext
+watch(
+  () => {
+    // no empty names
+    if (config.value.players.some(x => x.trim() === ''))
+      return true;
+    // no duplicates
+    return new Set(config.value.players).size !== config.value.players.length;
+  },
+  (invalid) => {
+    disableNext.value = invalid;
+  },
+  { immediate: true },
+);
 </script>
 
 <template>

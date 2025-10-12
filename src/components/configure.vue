@@ -2,7 +2,7 @@
 import { provide, ref, toRaw } from 'vue';
 import { useGameStore } from '@/utils/game';
 import { useRoundStore } from '@/utils/round';
-import { EditingGameConfigSymbol } from './configure/context';
+import { EditingGameConfig } from './configure/context';
 import Step1 from './configure/step-1.vue';
 import Step2 from './configure/step-2.vue';
 import Step3 from './configure/step-3.vue';
@@ -17,7 +17,7 @@ const StepTitle = ['', 'Import Candidate Pairs', 'Configure Players', 'Select Co
 
 // Create a cloned config state for editing
 const editingConfig = ref(structuredClone(toRaw(game.$state)));
-provide(EditingGameConfigSymbol, editingConfig);
+provide(EditingGameConfig, editingConfig);
 
 // Component refs
 const step1Ref = ref<InstanceType<typeof Step1>>();
@@ -79,7 +79,9 @@ function isCurrentStepValid() {
         </template>
         Source Code
       </NTooltip>
+
       <div class="flex items-center gap-2">
+        <span v-if="step === 1">{{ editingConfig.allPairs.length }} pairs loaded</span>
         <NButton v-if="step > 1" class="mr-2" @click="handlePrev">
           Prev
         </NButton>

@@ -2,9 +2,9 @@
 import type { UploadFileInfo } from 'naive-ui';
 import { computed, inject, ref } from 'vue';
 import { parseExcelFile } from '@/utils/excel';
-import { EditingGameConfigSymbol } from './context';
+import { EditingGameConfig } from './context';
 
-const config = inject(EditingGameConfigSymbol)!;
+const config = inject(EditingGameConfig)!;
 
 const PairsInputProps = {
   inputProps: { style: 'white-space: nowrap' },
@@ -15,17 +15,9 @@ const PairsInputProps = {
 const pairsLeft = ref('');
 const pairsRight = ref('');
 const showManualInputModal = ref(false);
-const uploadError = ref<string | undefined>();
-const fileUploaded = ref(false);
+const excelError = ref<string | undefined>();
 
 const getInputPairs = () => [pairsLeft.value.trim().split('\n'), pairsRight.value.trim().split('\n')];
-
-const localPairCount = computed(() => {
-  const [l, r] = getInputPairs();
-  const validL = l.filter(x => x.trim());
-  const validR = r.filter(x => x.trim());
-  return Math.min(validL.length, validR.length);
-});
 
 // Load existing pairs from config on mount
 for (const pair of config.value.allPairs) {
@@ -47,7 +39,7 @@ function syncToConfig() {
 }
 
 const isValid = computed(() => {
-  if (uploadError.value)
+  if (excelError.value)
     return false;
   const [l, r] = getInputPairs().map(x => new Set(x));
   return l.size > 0 && l.size === r.size; // deduplicate
@@ -56,10 +48,8 @@ const isValid = computed(() => {
 defineExpose({ syncToConfig, isValid });
 
 async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
-  uploadError.value = undefined;
-
+  excelError.value = undefined;
   if (!options.fileList || options.fileList.length === 0) {
-    fileUploaded.value = false;
     pairsLeft.value = '';
     pairsRight.value = '';
     return;
@@ -69,23 +59,13 @@ async function handleFileChange(options: { fileList: UploadFileInfo[] }) {
   if (!fileInfo.file)
     return;
 
-  const result = await parseExcelFile(fileInfo.file);
-
-  if (!result.success) {
-    uploadError.value = result.error;
-    fileUploaded.value = false;
-    return;
+  try {
+    const result = await parseExcelFile(fileInfo.file);
+    pairsLeft.value = result.map(p => p[0]).join('\n');
+    pairsRight.value = result.map(p => p[1]).join('\n');
+  } catch (e) {
+    excelError.value = String(e);
   }
-
-  // Success: update local state with parsed pairs (not store directly)
-  const pairs = result.pairs || [];
-  pairsLeft.value = '';
-  pairsRight.value = '';
-  for (const pair of pairs) {
-    pairsLeft.value += `${pair[0]}\n`;
-    pairsRight.value += `${pair[1]}\n`;
-  }
-  fileUploaded.value = true;
 }
 
 function openManualInput() {
@@ -93,8 +73,7 @@ function openManualInput() {
 }
 
 function saveManualInput() {
-  uploadError.value = undefined;
-  fileUploaded.value = false;
+  excelError.value = undefined;
   showManualInputModal.value = false;
 }
 </script>
@@ -103,15 +82,14 @@ function saveManualInput() {
   <div>
     <p class="mb-4">
       Upload an Excel file with pairs in columns A and B, or
-      <a class="cursor-pointer text-blue-500 hover:text-blue-600" @click="openManualInput">
+      <NA @click="openManualInput">
         use manual input
-      </a>.
+      </NA>
+      .
     </p>
 
     <NUpload
-      v-show="!fileUploaded"
-      accept=".xlsx,.xls"
-      :max="1"
+      accept=".xlsx,.xls,.csv"
       :default-upload="false"
       @change="handleFileChange"
     >
@@ -122,18 +100,11 @@ function saveManualInput() {
         <p class="text-base">
           Click or drag Excel file here
         </p>
-        <p class="mt-2 text-sm text-gray-500">
-          Please ensure columns A and B contain the candidate pairs
-        </p>
       </NUploadDragger>
     </NUpload>
 
-    <NAlert v-if="uploadError" type="error" class="mt-2">
-      {{ uploadError }}
-    </NAlert>
-
-    <NAlert v-else-if="localPairCount > 0" type="success" class="mt-2">
-      {{ localPairCount }} pairs loaded
+    <NAlert v-if="excelError" type="error" class="mt-2">
+      {{ excelError }}
     </NAlert>
 
     <NModal
@@ -161,9 +132,5 @@ function saveManualInput() {
         </div>
       </template>
     </NModal>
-
-    <div v-if="localPairCount > 0" class="mt-4 text-sm text-gray-600">
-      {{ localPairCount }} pairs detected
-    </div>
   </div>
 </template>

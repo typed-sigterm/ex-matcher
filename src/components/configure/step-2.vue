@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
-import { EditingGameConfigSymbol } from './context';
+import { EditingGameConfig } from './context';
 
-const config = inject(EditingGameConfigSymbol)!;
+const config = inject(EditingGameConfig)!;
 
 const isValid = computed(() => {
   // no empty names

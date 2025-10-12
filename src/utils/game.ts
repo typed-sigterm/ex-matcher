@@ -27,6 +27,6 @@ export const useGameStore = defineStore('game', {
   }),
   persist: {
     key: 'game-config',
-    pick: ['allPairs', 'roundlyPairCount', 'players', 'mode', 'record'],
+    pick: ['roundlyPairCount', 'players', 'mode', 'record'],
   },
 });

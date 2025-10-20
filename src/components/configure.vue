@@ -74,7 +74,6 @@ function handlePrev() {
       </NTooltip>
 
       <div class="flex items-center gap-2">
-        <span v-if="step === 1">{{ editingConfig.allPairs.length }} pairs loaded</span>
         <NButton v-if="step > 1" class="mr-2" @click="handlePrev">
           Prev
         </NButton>

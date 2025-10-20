@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { UploadFileInfo } from 'naive-ui';
-import { inject, ref, watch } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { parseExcelFile } from '@/utils/excel';
 import { DisableNext, EditingGameConfig, SyncToConfig } from './context';
 
@@ -20,6 +20,14 @@ const showManualInputModal = ref(false);
 const excelError = ref<string | undefined>();
 
 const getInputPairs = () => [pairsLeft.value.trim().split('\n'), pairsRight.value.trim().split('\n')];
+
+// Computed property for the number of pairs in local state
+const localPairCount = computed(() => {
+  const [l, r] = getInputPairs();
+  const validL = l.filter(x => x.trim() !== '');
+  const validR = r.filter(x => x.trim() !== '');
+  return Math.min(validL.length, validR.length);
+});
 
 // Load existing pairs from config on mount
 for (const pair of config.value.allPairs) {
@@ -115,6 +123,10 @@ function saveManualInput() {
 
     <NAlert v-if="excelError" type="error" class="mt-2">
       {{ excelError }}
+    </NAlert>
+
+    <NAlert v-else-if="localPairCount > 0" type="success" class="mt-2">
+      {{ localPairCount }} pairs loaded
     </NAlert>
 
     <NModal

@@ -2,8 +2,10 @@
 
 <template>
   <NConfigProvider inline-theme-disabled>
-    <NModalProvider>
-      <ExMatcher />
-    </NModalProvider>
+    <NMessageProvider>
+      <NModalProvider>
+        <ExMatcher />
+      </NModalProvider>
+    </NMessageProvider>
   </NConfigProvider>
 </template>
